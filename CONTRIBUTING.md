@@ -18,4 +18,4 @@
 - `patches/patch_main_revive.py` + `patch_revive_cap.py` 的限流是否会被重启绕过。
 - `core/supervisor.py` 的单实例守卫（靠 pid 文件）在竞态下是否需要换成文件锁/命名互斥体。
 
-> 本项目是 **Munder Difflin 的二次开发**（仓库名 `munder-difflin-starhive`）：只提供补丁与编排层，不分发上游代码与资源。
+> 本项目是 **Munder Difflin 的二次开发**：只提供补丁与编排层，不分发上游代码与资源。
