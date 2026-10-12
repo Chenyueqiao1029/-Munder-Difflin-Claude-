@@ -1,0 +1,19 @@
+# ---- 绝不入库 ----
+*.bak*
+*备份*
+chat/
+_source/
+pack/
+backup-*/
+logs/
+*.log
+driver-state.json
+driver-status.json
+watchdog-state.json
+supervisor.pid
+# 凭据
+.env
+*.key
+*.pem
+credentials*
+secrets*
