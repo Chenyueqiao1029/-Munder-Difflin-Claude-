@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""生成「星域办公室进度看板」HTML：全员状态 / 待办 / 最后一次产出 / 消息时间线。
+"""生成「星域蜂巢进度看板」HTML：全员状态 / 待办 / 最后一次产出 / 消息时间线。
 用法：python progress_board.py    → 产出 进度看板.html
 """
 import html
@@ -127,7 +127,7 @@ def main():
             tl.append((t, '系统', nm, k, '掉线/归档' if k != 'archive' else '归档', False))
 
     h = ['<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">',
-         '<title>星域办公室 · 进度看板</title>',
+         '<title>星域蜂巢 · 进度看板</title>',
          '<style>',
          'body{background:#141222;color:#e8e4ff;font:14px/1.6 "Microsoft YaHei",system-ui;margin:0;padding:24px}',
          'h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 10px;color:#b9a8ff}',
@@ -143,7 +143,7 @@ def main():
          '.act{display:inline-block;padding:1px 6px;border-radius:5px;background:#2c2550;color:#c9b8ff;font-size:11px}',
          '.sys{color:#7b7398}',
          '</style></head><body>']
-    h.append('<h1>星域办公室 · 进度看板</h1>')
+    h.append('<h1>星域蜂巢 · 进度看板</h1>')
     h.append('<div class="meta">生成时间 %s ｜ 进程：rivet=%s dsh-tui=%s codex=%s codebuddy=%s</div>' % (
         now, plist.count('entry.js'), plist.count('dsh-tui'), plist.count('codex'), plist.count('codebuddy')))
     h.append('<h2>员工状态</h2><div class="grid">')

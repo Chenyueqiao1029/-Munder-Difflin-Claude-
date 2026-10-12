@@ -1,4 +1,4 @@
-# 星域办公室 · Star-Domain Office
+# 星域蜂巢 · StarHive Office
 
 把一堆**互相协作的 AI agent** 放进一间**像素风办公室**里跑，并且——这是重点——**让它省钱、可观测、可验收**。
 

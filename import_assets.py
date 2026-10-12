@@ -175,7 +175,7 @@ def do_install(key, name):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='导入你自己的像素素材到星域办公室')
+    ap = argparse.ArgumentParser(description='导入你自己的像素素材到星域蜂巢')
     sub = ap.add_subparsers(dest='cmd', required=True)
 
     c = sub.add_parser('char', help='导入单个人物')
@@ -198,7 +198,7 @@ def main():
     m.set_defaults(fn=cmd_map)
 
     a = ap.parse_args()
-    print('== 星域办公室 · 素材导入 ==')
+    print('== 星域蜂巢 · 素材导入 ==')
     print('   工作目录：%s' % HERE)
     os.makedirs(OUT, exist_ok=True)
     rc = a.fn(a)

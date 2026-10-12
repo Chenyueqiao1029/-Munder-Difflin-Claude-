@@ -48,7 +48,7 @@ Get-CimInstance Win32_Process | ? { $_.CommandLine -like '*agent_driver2*' }
 Get-CimInstance Win32_Process | ? { $_.CommandLine -like '*watchdog.py*' }
 Get-CimInstance Win32_Process | ? { $_.CommandLine -like '*md_chat.py*' }
 schtasks /Query /TN "MDSupervisor"            # 期望 State=Ready，每 10 分钟
-Test-Path "$([Environment]::GetFolderPath('Startup'))\星域办公室-常驻.vbs"   # 期望 True
+Test-Path "$([Environment]::GetFolderPath('Startup'))\星域蜂巢-常驻.vbs"   # 期望 True
 ```
 
 ### A6. 崩溃已停（除 Codex 额度）
