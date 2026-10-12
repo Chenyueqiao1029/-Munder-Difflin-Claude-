@@ -256,8 +256,10 @@ def do_office(img, tile, seats_n, install, pick=False):
             shutil.copy2(_src, _bak)
             log('已备份旧 %s → %s' % (_n, os.path.basename(_bak)))
     shutil.copy2(ATLAS, os.path.join(pack, 'office-new-final.png'))
+    # ★ 必须是**紧凑单行**：patch_map.py 会把它塞进 `const officeMapRaw = '<json>'`
+    #   的单引号字符串里，带换行会直接变成 "Unterminated string literal"（实测踩过）。
     io.open(os.path.join(pack, 'office-new.tmj'), 'w', encoding='utf-8', newline='\n').write(
-        json.dumps(tmj, ensure_ascii=False, indent=1))
+        json.dumps(tmj, ensure_ascii=False, separators=(',', ':')))
     log('已同步到 pack/：office-new-final.png + office-new.tmj（安装补丁从这里取地图）')
 
     if install:
