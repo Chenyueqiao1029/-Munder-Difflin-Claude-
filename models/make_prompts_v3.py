@@ -22,6 +22,26 @@ OPENPET = 'https://github.com/AwesomeHou/openpet-ai-girls'
 QIANWEN = 'https://zhuanlan.zhihu.com/p/2075877853825069166'
 DSCHAN = 'https://github.com/Mentha-Azure/deepseek-chan-qqbot'
 
+# 每个角色的品牌标识（画在发夹/徽章/袖标/道具上；风格化即可，不要复刻官方 logo）
+BADGE = {
+ 'glm':      ('头上发夹', '一枚蓝色方牌发夹，牌上写一个「智」字'),
+ 'kimi':     ('头上发夹', '一枚深蓝月牙发夹（呼应「月之暗面」）'),
+ 'qwen':     ('领口徽章', '圆形蓝色徽章，内里一个「通」字'),
+ 'doubao':   ('头上发夹', '一枚浅蓝小包子造型发夹'),
+ 'hunyuan':  ('领口徽章', '蓝色圆章，内里一个太极阴阳小图'),
+ 'mimo':     ('袖标', '橙色袖标，印一个「MI」方形小标'),
+ 'minimax':  ('胸口徽章', '橙红海螺形徽章，壳纹用品牌色描边'),
+ 'ernie':    ('袖标', '蓝色袖标，印一个「文」字'),
+ 'baichuan': ('领口徽章', '橙色圆章，内里三道水波纹（百川入海）'),
+ 'spark':    ('头上发夹', '一枚小火苗造型发夹，青蓝火焰带红芯'),
+ 'yi':       ('胸口徽章', '墨青方章，内里写「01」'),
+ 'ollama':   ('道具标记', '小机柜面板上画一只羊驼剪影'),
+ 'gemini':   ('头上发夹', '一枚双星（双子）造型发夹，蓝紫渐变'),
+ 'grok':     ('袖标', '黑色袖标上一个金色「X」'),
+ 'mistral':  ('袖标', '红橙渐变袖标，印一道三道风的斜纹'),
+ 'llama':    ('道具标记', '开源权重硬盘上印一只羊驼剪影'),
+}
+
 # id, 名, 属地, 真实特色, 评价来源, 二创依据(链接或 None), 外形, 道具, 气质
 M = [
  ('glm', 'GLM（智谱）', '国产', 'GLM-4.7-Flash 完全免费、200K 上下文，零成本调用',
@@ -129,12 +149,15 @@ for (mid, name, region, trait, src, ref, look, prop, vibe) in M:
     L.append('| 真实特色 | %s |' % trait)
     L.append('| 评价来源 | [%s](%s) |' % (src.split('/')[2], src))
     L.append('| 外形 | %s ｜ 道具：%s ｜ 气质：%s |' % (look, prop, vibe))
+    bd_pos, bd_desc = BADGE.get(mid, ('发夹', '品牌标志物'))
+    L.append('| 品牌标识 | %s：%s |' % (bd_pos, bd_desc))
     L.append('| 文件名 | `%s.sheet.png` + `%s.portrait.png` |\n' % (mid, mid))
     L.append('```')
     L.append('请画一张透明背景的 Q 版像素风角色图集：角色代表「%s」这个 AI 模型。' % name)
     L.append('它的真实特点是：%s。' % trait)
     L.append('配色必须用该品牌的官方色：主色 %s（官网/App 品牌色，以此为准）。' % pal_txt.replace('**', ''))
     L.append('外形：%s；%s；气质%s。' % (look.replace('**', ''), prop.replace('**', ''), vibe.replace('**', '')))
+    L.append('品牌标识（必须画，且 21 帧位置一致）：%s——%s。风格化即可，不要复刻官方 logo，不要写整串文字。' % BADGE.get(mid, ('发夹', '品牌标志物')))
     L.append(SHARED_CN)
     L.append('```\n')
     L.append('---\n')
