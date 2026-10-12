@@ -1,0 +1,16 @@
+{
+  "_说明": "自定义模型/员工清单：由 tools/add_custom_agent.py 追加；产出图在 assets/chars/。",
+  "agents": [
+    {
+      "id": "mymodel",
+      "name": "我的模型",
+      "model": "glm",
+      "sheet": "chars/mymodel.sheet.png",
+      "portrait": "chars/mymodel.portrait.png",
+      "source": "D:\\徐\\星域蜂巢\\assets\\chars\\yueqiao.portrait.png",
+      "added": "2026-10-12 13:58",
+      "custom": true
+    }
+  ],
+  "count": 1
+}
