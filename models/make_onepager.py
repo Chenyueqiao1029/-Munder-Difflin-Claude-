@@ -17,9 +17,16 @@ md = io.open(MD, encoding='utf-8').read()
 
 # 抽出每段：## 名称（`id`） ... 紧跟的 ``` 代码块
 blocks = []
-for m in re.finditer(r'## ([^\n（]+)（`([^`]+)`）[^\n]*\n(.*?)```\n(.*?)```', md, re.S):
-    name, mid, body, prompt = m.group(1).strip(), m.group(2).strip(), m.group(3), m.group(4).strip()
-    blocks.append((mid, name, body, prompt))
+for sec in md.split('\n## ')[1:]:
+    head = sec.split('\n', 1)[0]
+    mid_m = re.search(r'`([^`]+)`', head)          # 小节标题里第一个反引号内容 = id
+    pr_m = re.search(r'```\n(.*?)```', sec, re.S)  # 该小节第一个代码块 = 提示词
+    if not (mid_m and pr_m):
+        continue
+    mid = mid_m.group(1).strip()
+    name = re.sub(r'（`[^`]+`）', '', head).replace('**', '').strip()
+    name = re.sub(r'\s+', ' ', name)
+    blocks.append((mid, name, '', pr_m.group(1).strip()))
 
 L = []
 L.append('=' * 78)
