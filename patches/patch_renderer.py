@@ -17,6 +17,8 @@ import subprocess
 import sys
 import tempfile
 
+sys.dont_write_bytecode = True
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 TOOLS = os.path.join(REPO, 'tools')
@@ -68,10 +70,7 @@ def _require_esbuild(esbuild):
 
 
 def _pick_stage(app, configured, source):
-    if source in ('config.json', 'env:MD_STAGE_DIR'):
-        return configured
-    candidates = [configured, os.path.join(os.path.dirname(app), '_renderer-patched')]
-    return next((p for p in candidates if p and os.path.isdir(p)), configured or candidates[-1])
+    return configured
 
 
 def _pick_renderer(out_dir, configured, source):
@@ -372,8 +371,14 @@ function __mdCustomFrames(name){
     # U2 must survive cast/map regeneration from the official renderer.
     from patch_u2_terminal_restore import patch as patch_u2
     patch_u2(STAGE)
-    from patch_quota_renderer import patch as patch_quota
-    patch_quota(STAGE)
+    try:
+        from patch_quota_renderer import patch as patch_quota
+    except ModuleNotFoundError as exc:
+        if exc.name != 'patch_quota_renderer':
+            raise
+        print('  未提供 patch_quota_renderer.py，跳过 quota 补丁')
+    else:
+        patch_quota(STAGE)
     from patch_native_events_renderer import patch as patch_native_events
     patch_native_events(STAGE)
     gate_paths = [mp, fp]
@@ -392,7 +397,7 @@ def main():
     try:
         install(dry_run=args.dry_run)
         return 0
-    except (InstallError, OSError, RuntimeError, ValueError, ImportError) as exc:
+    except Exception as exc:
         if _ROLLBACK:
             stage, backup_path = _ROLLBACK
             try:

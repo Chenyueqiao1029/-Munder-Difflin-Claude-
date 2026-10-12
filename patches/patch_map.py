@@ -17,6 +17,8 @@ import subprocess
 import sys
 import tempfile
 
+sys.dont_write_bytecode = True
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 TOOLS = os.path.join(REPO, 'tools')
@@ -104,27 +106,79 @@ def syntax_gate(path, esbuild):
     print('  esbuild 语法门: 通过')
 
 
-def main():
+def _backup_files(floor_path, image_path, backup_root):
+    os.makedirs(backup_root, exist_ok=True)
+    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    target = os.path.join(backup_root, 'map-' + stamp)
+    os.makedirs(target)
+    floor_backup = os.path.join(target, os.path.basename(floor_path))
+    shutil.copy2(floor_path, floor_backup)
+    image_backup = None
+    if os.path.isfile(image_path):
+        image_backup = os.path.join(target, os.path.basename(image_path))
+        shutil.copy2(image_path, image_backup)
+    print('修改前文件已备份:', target)
+    return floor_backup, image_backup
+
+
+def _rollback_files(floor_path, floor_backup, image_path, image_backup):
+    shutil.copy2(floor_backup, floor_path)
+    if image_backup:
+        shutil.copy2(image_backup, image_path)
+    elif os.path.exists(image_path):
+        os.remove(image_path)
+    print('安装失败，已恢复地图补丁前的文件。')
+
+
+def install(paths):
+    global _ROLLBACK
+    STAGE = paths['stage']
+    MAP_JSON = paths['map_json']
+    MAP_PNG = paths['map_png']
+    ESBUILD = paths['esbuild']
+    BACKUP = paths['backup']
+    if not STAGE:
+        raise InstallError(
+            '找不到补丁暂存目录。请设置 MD_STAGE_DIR，或在 config.json 中填写 stage_dir。')
+    if not paths['pack']:
+        raise InstallError(
+            '找不到地图素材目录配置。请设置 MD_PACK_DIR，或在 config.json 中填写 pack_dir。')
+    if not BACKUP:
+        raise InstallError(
+            '找不到备份目录配置。请设置 MD_BACKUP_DIR，或在 config.json 中填写 backup_dir。')
     assets = os.path.join(STAGE, 'assets')
-    fj = [f for f in os.listdir(assets) if f.startswith('OfficeFloor-') and f.endswith('.js')][0]
+    if not os.path.isdir(assets):
+        raise InstallError(
+            '找不到补丁目录的 assets：%s。请设置 MD_STAGE_DIR，'
+            '或在 config.json 中填写 stage_dir。' % assets)
+    if not os.path.isfile(MAP_JSON) or not os.path.isfile(MAP_PNG):
+        raise InstallError(
+            '缺少地图素材。请设置 MD_PACK_DIR，或在 config.json 中填写 pack_dir；'
+            '该目录应包含 office-new.tmj 与 office-new-final.png。')
+    floor_files = sorted(
+        f for f in os.listdir(assets)
+        if f.startswith('OfficeFloor-') and f.endswith('.js'))
+    if not floor_files:
+        raise InstallError('找不到 OfficeFloor-*.js：%s' % assets)
+    fj = floor_files[0]
     fp = os.path.join(assets, fj)
     t = open(fp, encoding='utf-8').read()
-    orig = t
 
     map_raw = open(MAP_JSON, encoding='utf-8').read().strip()
     json.loads(map_raw)
-    assert "'" not in map_raw, '地图 JSON 含单引号'
+    if "'" in map_raw:
+        raise InstallError('地图 JSON 含单引号，不能安全嵌入 officeMapRaw')
 
     # 1) 地图
     m = re.search(r"const officeMapRaw = '([^']*)';", t)
     if not m:
-        sys.exit('找不到 officeMapRaw')
+        raise InstallError('找不到 officeMapRaw 锚点')
     t = t[:m.start(1)] + map_raw + t[m.end(1):]
 
     # 2) tilesets（只匹配「后面紧跟 primarySeatNames 的那一个」= office 主题）
     g = re.search(r"tilesets: \[\n(?:.*?\n)*?  \],\n  primarySeatNames: \[", t)
     if not g:
-        sys.exit('找不到 office 主题的 tilesets 块')
+        raise InstallError('找不到 office 主题的 tilesets 块')
     t = (t[:g.start()]
          + 'tilesets: [\n    { url: "./assets/office-new.png", embedded: true }\n  ],\n  primarySeatNames: ['
          + t[g.end():])
@@ -132,11 +186,9 @@ def main():
     # 3) primarySeatNames（紧随其后的那一个）
     h = re.search(r"primarySeatNames: \[\n(?:.*?\n)*?  \],", t)
     if not h:
-        sys.exit('找不到 primarySeatNames')
+        raise InstallError('找不到 primarySeatNames')
     block = 'primarySeatNames: [\n' + ''.join('    "%s",\n' % s for s in SEATS).rstrip(',\n') + '\n  ],'
     t = t[:h.start()] + block + t[h.end():]
-
-    open(fp, 'w', encoding='utf-8', newline='\n').write(t)
 
     # L. 按 agent id 固定分座（primarySeatNames 的序号：0=老板 1=workbuddy 2=claude 3=codex 4=dsh 5=exec 6=approve 7=fix）
     seat_old = """        for (let i2 = 1; i2 < seatTiles.length; i2++) {
@@ -159,29 +211,40 @@ def main():
           }
         }"""
     if t.count(seat_old) != 1:
-        sys.exit('分座锚点异常 %d' % t.count(seat_old))
+        raise InstallError('分座锚点异常 %d' % t.count(seat_old))
     t = t.replace(seat_old, seat_new, 1)
-    open(fp, 'w', encoding='utf-8', newline='\n').write(t)   # L 的改动要落盘（它在原保存之后）
     print('  L 已注入固定分座')
 
     # P. god（月桥）坐老板椅时面朝我们（原逻辑按"北边有家具就背对我们"）
     face_old = 'seatDirection: facingForSeat(seatTile),'
     face_new = 'seatDirection: agent.isGod ? "down" : facingForSeat(seatTile), /*__mdGodFacing*/'
     if t.count(face_old) != 1:
-        sys.exit('座位朝向锚点异常 %d' % t.count(face_old))
+        raise InstallError('座位朝向锚点异常 %d' % t.count(face_old))
     t = t.replace(face_old, face_new, 1)
-    open(fp, 'w', encoding='utf-8', newline='\n').write(t)
     print('  P 月桥朝向 -> down')
 
-    # 图集进 assets
-    shutil.copy2(MAP_PNG, os.path.join(assets, 'office-new.png'))
+    image_path = os.path.join(assets, 'office-new.png')
+    if os.path.normcase(os.path.realpath(MAP_PNG)) == os.path.normcase(os.path.realpath(image_path)):
+        raise InstallError('map_png 不能与目标 office-new.png 是同一文件；请调整 MD_PACK_DIR。')
+    try:
+        backup_inside_stage = os.path.commonpath(
+            [os.path.realpath(BACKUP), os.path.realpath(STAGE)]
+        ) == os.path.realpath(STAGE)
+    except ValueError:
+        backup_inside_stage = False
+    if backup_inside_stage:
+        raise InstallError(
+            'backup_dir 不能位于 stage_dir 内；请设置 MD_BACKUP_DIR，'
+            '或修改 config.json 中的 backup_dir。')
+
+    floor_backup, image_backup = _backup_files(fp, image_path, BACKUP)
+    _ROLLBACK = (fp, floor_backup, image_path, image_backup)
+    with open(fp, 'w', encoding='utf-8', newline='\n') as handle:
+        handle.write(t)
+    shutil.copy2(MAP_PNG, image_path)
 
     # 校验
-    err = syntax_gate(fp)
-    print('  esbuild 语法门:', '通过' if err is None else '失败 →\n' + err)
-    if err:
-        open(fp, 'w', encoding='utf-8', newline='\n').write(orig)
-        sys.exit('已回滚该文件（语法门未通过）')
+    syntax_gate(fp, ESBUILD)
 
     t2 = open(fp, encoding='utf-8').read()
     checks = [
@@ -196,9 +259,34 @@ def main():
     for label, ok in checks:
         print('  %-14s %s' % (label, 'OK' if ok else 'FAIL'))
     if not all(ok for _, ok in checks):
-        sys.exit('自检失败')
-    print('地图补丁完成（已过语法门）')
+        raise InstallError('自检失败')
+    _ROLLBACK = None
+    print('地图补丁完成（已备份并通过语法门）')
+
+
+def main():
+    parser = argparse.ArgumentParser(description='安装 StarHive Office 自定义地图补丁')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='只校验 app 与 esbuild，并打印将修改的文件；不写任何文件')
+    args = parser.parse_args()
+    try:
+        paths, sources = resolve_paths()
+        if args.dry_run:
+            dry_run(paths, sources)
+        else:
+            install(paths)
+        return 0
+    except Exception as exc:
+        if _ROLLBACK:
+            try:
+                _rollback_files(*_ROLLBACK)
+            except OSError as rollback_exc:
+                print('错误：%s' % exc, file=sys.stderr)
+                print('回滚也失败：%s' % rollback_exc, file=sys.stderr)
+                return 3
+        print('错误：%s' % exc, file=sys.stderr)
+        return 2
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
