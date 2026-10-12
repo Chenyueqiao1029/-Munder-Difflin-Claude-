@@ -7,33 +7,101 @@
 其余（coffee/anchors/errandSpots/cafeStands/cafeSeatNames）**保持原样** —— 引擎对这些
 是容错读取的，不动它们能把"改坏对象字面量"的风险降到最低。
 """
+import argparse
+import datetime
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
-STAGE = r'D:\徐\MunderDifflin\_renderer-patched'
-PACK = r'D:\徐\MunderDifflin\custom-cast\pack'
-MAP_JSON = os.path.join(PACK, 'office-new.tmj')
-MAP_PNG = os.path.join(PACK, 'office-new-final.png')
-ESBUILD = (r'D:\徐\_ref\munder-difflin-src\node_modules\.pnpm\@esbuild+win32-x64@0.21.5'
-           r'\node_modules\@esbuild\win32-x64\esbuild.exe')
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+TOOLS = os.path.join(REPO, 'tools')
+if TOOLS not in sys.path:
+    sys.path.insert(0, TOOLS)
 
 SEATS = ['desk-ceo', 'desk-workbuddy', 'desk-claude', 'desk-codex',
          'desk-dsh', 'desk-exec', 'desk-approve', 'desk-fix']
 
+_ROLLBACK = None
 
-def syntax_gate(path):
+
+class InstallError(RuntimeError):
+    pass
+
+
+def _load_config():
+    try:
+        from md_config import cfg_with_source
+    except (ImportError, SyntaxError) as exc:
+        raise InstallError(
+            '无法加载 tools/md_config.py（%s）。请确认该文件存在且能通过 py_compile。' % exc)
+    return cfg_with_source
+
+
+def _require_app(app):
+    out_dir = os.path.join(app, 'resources', 'app', 'out') if app else ''
+    if not app or not os.path.isdir(out_dir):
+        raise InstallError(
+            '找不到 Munder Difflin 应用目录。请设置环境变量 MD_APP_DIR，'
+            '或在仓库根 config.json 中填写 app_dir（应包含 resources\\app\\out）。')
+
+
+def _require_esbuild(esbuild):
+    if not esbuild or not os.path.isfile(esbuild):
+        raise InstallError(
+            '找不到 esbuild。请设置环境变量 MD_ESBUILD，'
+            '或在仓库根 config.json 中填写 esbuild（指向 esbuild.exe）。')
+
+
+def resolve_paths():
+    config = _load_config()
+    values = {key: config(key) for key in
+              ('app_dir', 'esbuild', 'stage_dir', 'pack_dir', 'backup_dir')}
+    paths = {
+        'app': os.path.abspath(values['app_dir'][0]) if values['app_dir'][0] else '',
+        'esbuild': os.path.abspath(values['esbuild'][0]) if values['esbuild'][0] else '',
+        'stage': os.path.abspath(values['stage_dir'][0]) if values['stage_dir'][0] else '',
+        'pack': os.path.abspath(values['pack_dir'][0]) if values['pack_dir'][0] else '',
+        'backup': os.path.abspath(values['backup_dir'][0]) if values['backup_dir'][0] else '',
+    }
+    paths['map_json'] = os.path.join(paths['pack'], 'office-new.tmj')
+    paths['map_png'] = os.path.join(paths['pack'], 'office-new-final.png')
+    _require_app(paths['app'])
+    _require_esbuild(paths['esbuild'])
+    return paths, {key: value[1] for key, value in values.items()}
+
+
+def dry_run(paths, sources):
+    assets = os.path.join(paths['stage'], 'assets')
+    print('干跑模式：路径校验通过，不会写入任何文件。')
+    print('  app      : %s [%s]' % (paths['app'], sources['app_dir']))
+    print('  esbuild  : %s [%s]' % (paths['esbuild'], sources['esbuild']))
+    print('  stage    : %s [%s]' % (paths['stage'], sources['stage_dir']))
+    print('  pack     : %s [%s]' % (paths['pack'], sources['pack_dir']))
+    print('  将读取   : %s' % paths['map_json'])
+    print('  将读取   : %s' % paths['map_png'])
+    print('  将修改   : %s' % os.path.join(assets, 'OfficeFloor-*.js'))
+    print('  将写入   : %s' % os.path.join(assets, 'office-new.png'))
+    print('  将备份到 : %s' % paths['backup'])
+
+
+def syntax_gate(path, esbuild):
     """用 esbuild 解析该 bundle；有语法错误就返回错误文本。"""
-    if not os.path.exists(ESBUILD):
-        return None                      # 没有 esbuild 就跳过（不阻塞）
-    r = subprocess.run([ESBUILD, '--log-level=error', '--outfile=' + os.path.join(os.environ.get('TEMP', '.'), 'gate.js'),
-                        '--allow-overwrite', path], capture_output=True, text=True)
-    if r.returncode != 0:
-        return (r.stderr or r.stdout)[:600]
-    return None
+    with tempfile.TemporaryDirectory(prefix='starhive-esbuild-') as temp_dir:
+        result = subprocess.run(
+            [esbuild, '--log-level=error',
+             '--outfile=' + os.path.join(temp_dir, 'gate.js'),
+             '--allow-overwrite', path],
+            capture_output=True, text=True, encoding='utf-8', errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    if result.returncode:
+        detail = (result.stderr or result.stdout or '未知语法错误').strip()[:1200]
+        raise InstallError('esbuild 语法门未通过：%s\n%s' % (path, detail))
+    print('  esbuild 语法门: 通过')
 
 
 def main():

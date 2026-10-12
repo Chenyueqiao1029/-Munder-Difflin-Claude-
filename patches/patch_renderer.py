@@ -36,6 +36,9 @@ class InstallError(RuntimeError):
     pass
 
 
+_ROLLBACK = None
+
+
 def _load_config():
     try:
         from md_config import cfg, cfg_with_source
@@ -90,18 +93,73 @@ def _pick_renderer(out_dir, configured, source):
     return renderer
 
 
-def resolve_paths():
+def _dry_run(paths, sources):
+    print('干跑模式：路径校验通过，不会写入任何文件。')
+    print('  app      : %s [%s]' % (paths['app'], sources['app']))
+    print('  esbuild  : %s [%s]' % (paths['esbuild'], sources['esbuild']))
+    print('  renderer : %s [%s]' % (paths['source'], sources['renderer']))
+    print('  将重建   : %s' % paths['stage'])
+    print('  将修改   : %s' % os.path.join(paths['stage'], 'index.html'))
+    print('  将修改   : %s' % os.path.join(paths['stage'], 'assets', 'index-*.js'))
+    print('  将修改   : %s' % os.path.join(paths['stage'], 'assets', 'OfficeFloor-*.js'))
+    print('  可能修改 : %s' % os.path.join(paths['stage'], 'assets', 'global-*.js'))
+    print('  将备份到 : %s' % paths['backup'])
+
+
+def _backup_stage(stage, backup_root):
+    if not os.path.isdir(stage):
+        return None
+    os.makedirs(backup_root, exist_ok=True)
+    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    target = os.path.join(backup_root, 'renderer-' + stamp)
+    shutil.copytree(stage, target)
+    print('原补丁目录已备份:', target)
+    return target
+
+
+def _rollback_stage(stage, backup_path):
+    if os.path.isdir(stage):
+        shutil.rmtree(stage)
+    if backup_path:
+        shutil.copytree(backup_path, stage)
+        print('安装失败，已从备份回滚:', stage)
+    else:
+        print('安装失败，已移除未完成的补丁目录:', stage)
+
+
+def _syntax_gate(esbuild, paths):
+    with tempfile.TemporaryDirectory(prefix='starhive-esbuild-') as temp_dir:
+        for index, path in enumerate(dict.fromkeys(paths)):
+            if not path or not os.path.isfile(path):
+                continue
+            out = os.path.join(temp_dir, 'gate-%d.js' % index)
+            result = subprocess.run(
+                [esbuild, '--log-level=error', '--outfile=' + out,
+                 '--allow-overwrite', path],
+                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+            )
+            if result.returncode:
+                detail = (result.stderr or result.stdout or '未知语法错误').strip()[:1200]
+                raise InstallError('esbuild 语法门未通过：%s\n%s' % (path, detail))
+    print('  esbuild 语法门: 通过')
+
+
+def install(dry_run=False):
+    global _ROLLBACK
     cfg, cfg_with_source = _load_config()
-    app = os.path.abspath(cfg('app_dir')) if cfg('app_dir') else ''
+    app_value, app_source = cfg_with_source('app_dir')
+    app = os.path.abspath(app_value) if app_value else ''
     out_dir = _require_app(app)
-    esbuild = os.path.abspath(cfg('esbuild')) if cfg('esbuild') else ''
+    esbuild_value, esbuild_source = cfg_with_source('esbuild')
+    esbuild = os.path.abspath(esbuild_value) if esbuild_value else ''
     _require_esbuild(esbuild)
     stage_value, stage_source = cfg_with_source('stage_dir')
     renderer_value, renderer_source = cfg_with_source('renderer_dir')
     stage = _pick_stage(app, os.path.abspath(stage_value) if stage_value else '', stage_source)
-    renderer = _pick_renderer(
-        out_dir, os.path.abspath(renderer_value) if renderer_value else '', renderer_source
-    )
+    configured_renderer = os.path.abspath(renderer_value) if renderer_value else ''
+    renderer = (configured_renderer or os.path.join(out_dir, 'renderer')) if dry_run else _pick_renderer(
+        out_dir, configured_renderer, renderer_source)
     pack = os.path.abspath(cfg('pack_dir')) if cfg('pack_dir') else ''
     backup = os.path.abspath(cfg('backup_dir')) if cfg('backup_dir') else ''
     if not stage:
@@ -112,19 +170,48 @@ def resolve_paths():
         raise InstallError(
             '找不到备份目录配置。请设置 MD_BACKUP_DIR，或在 config.json 中填写 backup_dir。'
         )
-    return {
+    paths = {
         'app': app, 'source': renderer, 'stage': stage, 'pack': pack,
         'esbuild': esbuild, 'backup': backup,
     }
+    if dry_run:
+        _dry_run(paths, {'app': app_source, 'esbuild': esbuild_source,
+                         'renderer': renderer_source})
+        return
+
+    SRC_RENDERER = renderer
+    STAGE = stage
+    PACK = pack
+    if os.path.normcase(os.path.realpath(SRC_RENDERER)) == os.path.normcase(os.path.realpath(STAGE)):
+        raise InstallError(
+            'renderer_dir 与 stage_dir 不能是同一目录；请分别设置 MD_RENDERER_DIR 和 '
+            'MD_STAGE_DIR，或修改 config.json 中的 renderer_dir / stage_dir。'
+        )
+    try:
+        backup_inside_stage = os.path.commonpath(
+            [os.path.realpath(backup), os.path.realpath(STAGE)]
+        ) == os.path.realpath(STAGE)
+    except ValueError:
+        backup_inside_stage = False
+    if backup_inside_stage:
+        raise InstallError(
+            'backup_dir 不能位于 stage_dir 内；请设置 MD_BACKUP_DIR，'
+            '或修改 config.json 中的 backup_dir。'
+        )
 
     cast = {}
     for name in CAST:
         sheet = os.path.join(PACK, '%s.sheet.png' % name)
         port = os.path.join(PACK, '%s.portrait.png' % name)
         if not (os.path.exists(sheet) and os.path.exists(port)):
-            sys.exit('缺少素材: %s' % name)
+            raise InstallError(
+                '缺少角色素材：%s。请设置 MD_PACK_DIR，或在 config.json 中填写 pack_dir；'
+                '该目录应包含 %s.sheet.png 与 %s.portrait.png。' % (name, name, name)
+            )
         cast[name] = {'sheet': data_url(sheet), 'portrait': data_url(port)}
 
+    backup_path = _backup_stage(STAGE, backup)
+    _ROLLBACK = (STAGE, backup_path)
     if os.path.isdir(STAGE):
         shutil.rmtree(STAGE)
     shutil.copytree(SRC_RENDERER, STAGE)
@@ -138,7 +225,7 @@ def resolve_paths():
         if f.startswith('OfficeFloor-') and f.endswith('.js'):
             floor_js = f
     if not main_js or not floor_js:
-        sys.exit('目标 bundle 未找到')
+        raise InstallError('目标 bundle 未找到：%s\assets' % STAGE)
     print('  main :', main_js)
     print('  floor:', floor_js)
 
@@ -146,11 +233,11 @@ def resolve_paths():
     mp = os.path.join(STAGE, 'assets', main_js)
     m = open(mp, encoding='utf-8').read()
     if '__MD_CAST=' in m:
-        sys.exit('主 bundle 已打过补丁')
+        raise InstallError('主 bundle 已打过补丁：%s' % mp)
     m = 'window.__MD_CAST=%s;\n' % json.dumps(cast, separators=(',', ':')) + m
     old = 'paintPortrait(ctx, c, scale);'
     if m.count(old) != 1:
-        sys.exit('头像锚点异常 %d' % m.count(old))
+        raise InstallError('头像锚点异常 %d' % m.count(old))
     m = m.replace(old,
                   'paintPortrait(ctx, c, scale);'
                   'if(window.__MD_CAST&&window.__MD_CAST[c]){'
@@ -188,17 +275,17 @@ function __mdCustomFrames(name){
 
     anchor = 'async function getCastFrames(name) {'
     if t.count(anchor) != 1:
-        sys.exit('getCastFrames 锚点异常 %d' % t.count(anchor))
+        raise InstallError('getCastFrames 锚点异常 %d' % t.count(anchor))
     t = t.replace(anchor, helper + anchor + '\n  {const __md=await __mdCustomFrames(name); if(__md) return __md;}', 1)
 
     anim = 'idle: [0]\n};'
     if t.count(anim) != 1:
-        sys.exit('ANIM_FRAMES 锚点异常 %d' % t.count(anim))
+        raise InstallError('ANIM_FRAMES 锚点异常 %d' % t.count(anim))
     t = t.replace(anim, 'idle: [0]\n};\nconst MD_ANIM_FRAMES = { walk: [0,1,2,1], type: [3,4,3,4], read: [5,6,5,6], idle: [0] };', 1)
 
     gf = 'return ANIM_FRAMES[anim].map((col) => this.frames[row][col]);'
     if t.count(gf) != 1:
-        sys.exit('getFrames 锚点异常 %d' % t.count(gf))
+        raise InstallError('getFrames 锚点异常 %d' % t.count(gf))
     t = t.replace(gf, 'const __map=this.frames.__mdCustom?MD_ANIM_FRAMES:ANIM_FRAMES;\n    return __map[anim].map((col) => this.frames[row][col]);', 1)
     open(fp, 'w', encoding='utf-8', newline='\n').write(t)
     print('  OfficeFloor: 帧表优先 + 动作表')
@@ -208,7 +295,7 @@ function __mdCustomFrames(name){
     seat_new = ('this.sprite.setSeatedCrop((dir === "down" ? SEAT_LEG_CROP : SEAT_BACK_CROP)'
                 ' * (this.sprite.frameH ? Math.max(1, this.sprite.frameH / 32) : 1)); /*SEAT_CROP_SCALED*/')
     if t.count(seat_old) != 1:
-        sys.exit('坐姿裁剪锚点异常 %d' % t.count(seat_old))
+        raise InstallError('坐姿裁剪锚点异常 %d' % t.count(seat_old))
     t = t.replace(seat_old, seat_new, 1)
     open(fp, 'w', encoding='utf-8', newline='\n').write(t)
     print('  OfficeFloor: 坐姿裁剪按帧高缩放')
@@ -281,7 +368,7 @@ function __mdCustomFrames(name){
     for label, ok in checks:
         print('  %-20s %s' % (label, 'OK' if ok else 'FAIL'))
     if not all(ok for _, ok in checks):
-        sys.exit('自检失败')
+        raise InstallError('自检失败')
     # U2 must survive cast/map regeneration from the official renderer.
     from patch_u2_terminal_restore import patch as patch_u2
     patch_u2(STAGE)
@@ -289,8 +376,34 @@ function __mdCustomFrames(name){
     patch_quota(STAGE)
     from patch_native_events_renderer import patch as patch_native_events
     patch_native_events(STAGE)
+    gate_paths = [mp, fp]
+    if gj:
+        gate_paths.append(os.path.join(STAGE, 'assets', gj))
+    _syntax_gate(esbuild, gate_paths)
+    _ROLLBACK = None
     print('补丁副本就绪:', STAGE)
 
 
+def main():
+    parser = argparse.ArgumentParser(description='生成可安装的 StarHive renderer 补丁副本')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='只校验 app 与 esbuild，并打印将修改的文件；不写任何文件')
+    args = parser.parse_args()
+    try:
+        install(dry_run=args.dry_run)
+        return 0
+    except (InstallError, OSError, RuntimeError, ValueError, ImportError) as exc:
+        if _ROLLBACK:
+            stage, backup_path = _ROLLBACK
+            try:
+                _rollback_stage(stage, backup_path)
+            except OSError as rollback_exc:
+                print('错误：%s' % exc, file=sys.stderr)
+                print('回滚也失败：%s' % rollback_exc, file=sys.stderr)
+                return 3
+        print('错误：%s' % exc, file=sys.stderr)
+        return 2
+
+
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
