@@ -31,3 +31,8 @@ assets/source/brands12.png
 
 # 自定义办公室时自动产生的旧图集备份
 assets/map/*.backup-*.png
+
+# 插件加载凭证（机器相关，不入库）
+plugins/dsh-subagent-tianshu/load-proof.log
+plugins/**/*.bak-*
+plugins/**/*.preclean-*

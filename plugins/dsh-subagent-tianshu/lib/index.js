@@ -15,6 +15,8 @@
 //    （改这一处，不影响其它部分）。
 
 import { randomUUID } from 'node:crypto';
+import { appendFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import z from '@deepseek-ai/schemastery';
 import { NO_START_CAPABILITIES, settleRunResult, subprocessRunHandle } from '@deepseek-ai/dsh-subagent';
 import { runTianshu } from './tianshu-run.mjs';
@@ -138,4 +140,11 @@ export function apply(ctx, config) {
   };
   ctx.subagents.registerProvider(new TianshuProvider(providerName, ctx, resolved));
   ctx.logger?.info?.(`subagent-tianshu: 已注册星域 provider "${providerName}"（domain=${resolved.domain.id}，cwd=${resolved.domain.cwd || '(继承父会话)'}）`);
+  // 加载凭证：写一行到插件目录旁的 load-proof.log —— 用于事后证明"插件确实被 apply 了"
+  try {
+    const proof = fileURLToPath(new URL('../load-proof.log', import.meta.url));
+    appendFileSync(proof, `${new Date().toISOString()}\tprovider=${providerName}\tdomain=${resolved.domain.id}\tpid=${process.pid}\n`);
+  } catch {
+    /* 写不了就算了，不影响功能 */
+  }
 }
