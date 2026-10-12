@@ -28,3 +28,6 @@ __pycache__/
 
 # 老板出图的原图（本地测试用，不入库）
 assets/source/brands12.png
+
+# 自定义办公室时自动产生的旧图集备份
+assets/map/*.backup-*.png
