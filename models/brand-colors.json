@@ -1,0 +1,236 @@
+{
+  "_说明": "各模型官方站点/App 的真实品牌色：favicon 主色（按像素频次）+ theme-color。出图配色以此为准。",
+  "抓取时间": "2026-10-12",
+  "data": {
+    "deepseek": {
+      "name": "DeepSeek",
+      "url": "https://chat.deepseek.com/",
+      "theme": null,
+      "icon": "https://fe-static.deepseek.com/chat/icon-180.png",
+      "palette": [
+        "#4060F0",
+        "#5070F0",
+        "#5060F0",
+        "#3050F0"
+      ],
+      "from": "https://fe-static.deepseek.com/chat/icon-180.png"
+    },
+    "glm": {
+      "name": "智谱 GLM",
+      "url": "https://chatglm.cn/",
+      "theme": "#f6f7f9",
+      "icon": "https://chatglm.cn/favicon.ico",
+      "palette": [
+        "#1040F0",
+        "#3060F0",
+        "#2050F0",
+        "#5070F0"
+      ],
+      "from": "https://chatglm.cn/favicon.ico"
+    },
+    "kimi": {
+      "name": "Kimi",
+      "url": "https://kimi.moonshot.cn/",
+      "theme": "#fbfaf9",
+      "icon": "https://kimi.moonshot.cn/pwa-192.png",
+      "palette": [
+        "#1080F0",
+        "#1070E0",
+        "#003060",
+        "#004090"
+      ],
+      "from": "https://kimi.moonshot.cn/pwa-192.png"
+    },
+    "qwen": {
+      "name": "通义千问",
+      "url": "https://tongyi.aliyun.com/",
+      "theme": null,
+      "icon": "https://img.alicdn.com/imgextra/i4/O1CN01OXv3EM1FN8t9W4P79_!!6000000000474-2-tps-80-80.png",
+      "palette": [
+        "#0020F0"
+      ],
+      "from": "https://img.alicdn.com/imgextra/i4/O1CN01OXv3EM1FN8t9W4P79_!!6000000000474-2-tps-80-80.png",
+      "err": "cannot identify image file <_io.BytesIO object at 0x00000206"
+    },
+    "doubao": {
+      "name": "豆包",
+      "url": "https://www.doubao.com/",
+      "theme": null,
+      "icon": "https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/doubao/chat/favicon-doubao.png",
+      "palette": [
+        "#C0E0F0",
+        "#403030",
+        "#302020",
+        "#403020"
+      ],
+      "from": "https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/doubao/chat/favicon-doubao.png"
+    },
+    "hunyuan": {
+      "name": "腾讯混元",
+      "url": "https://hunyuan.tencent.com/",
+      "theme": "#f9f9f9",
+      "icon": "https://hunyuan-blog-web-prod-1258344703.cos.ap-guangzhou.myqcloud.com/logo.svg",
+      "palette": [
+        "#0052D9"
+      ],
+      "from": "腾讯品牌蓝（TDesign 规范）",
+      "err": "cannot identify image file <_io.BytesIO object at 0x00000206"
+    },
+    "mimo": {
+      "name": "小米 MiMo",
+      "url": "https://mimo.mi.com/",
+      "theme": null,
+      "icon": "https://mimo.mi.com/favicon.png",
+      "palette": [
+        "#E06010",
+        "#F0A070",
+        "#F0B090",
+        "#F08040"
+      ],
+      "from": "https://www.mi.com/favicon.ico"
+    },
+    "minimax": {
+      "name": "MiniMax",
+      "url": "https://www.minimaxi.com/",
+      "theme": "#181E25",
+      "icon": "https://www.minimaxi.com/favicon.ico",
+      "palette": [
+        "#F05040",
+        "#E01070",
+        "#E02070",
+        "#F04050"
+      ],
+      "from": "https://www.minimaxi.com/favicon.ico"
+    },
+    "ernie": {
+      "name": "文心一言",
+      "url": "https://yiyan.baidu.com/",
+      "theme": null,
+      "icon": "https://www.baidu.com/favicon.ico",
+      "palette": [
+        "#2030E0",
+        "#D0D0F0",
+        "#A0A0F0",
+        "#4040E0"
+      ],
+      "from": "https://www.baidu.com/favicon.ico"
+    },
+    "spark": {
+      "name": "讯飞星火",
+      "url": "https://xinghuo.xfyun.cn/",
+      "theme": null,
+      "icon": "https://xinghuo.xfyun.cn/spark-icon.ico",
+      "palette": [
+        "#30C0F0",
+        "#E00000",
+        "#1050D0",
+        "#30A0F0"
+      ],
+      "from": "https://xinghuo.xfyun.cn/spark-icon.ico"
+    },
+    "yi": {
+      "name": "零一万物",
+      "url": "https://www.lingyiwanwu.com/",
+      "theme": null,
+      "icon": "https://www.lingyiwanwu.com/./branding/favicon.0fef830a.svg",
+      "palette": [
+        "#206050",
+        "#307060",
+        "#407070",
+        "#A0C0B0"
+      ],
+      "from": "https://platform.lingyiwanwu.com/favicon.ico",
+      "err": "cannot identify image file <_io.BytesIO object at 0x00000206"
+    },
+    "ollama": {
+      "name": "Ollama",
+      "url": "https://ollama.com/",
+      "theme": null,
+      "icon": "https://ollama.com/public/icon-16x16.png",
+      "palette": [
+        "#000000"
+      ],
+      "from": "Ollama 官网黑白"
+    },
+    "gemini": {
+      "name": "Google Gemini",
+      "url": "https://gemini.google.com/",
+      "theme": null,
+      "icon": "https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png",
+      "palette": [
+        "#3080F0",
+        "#4080F0",
+        "#3090E0",
+        "#F04040"
+      ],
+      "from": "https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png"
+    },
+    "grok": {
+      "name": "xAI Grok",
+      "url": "https://x.ai/",
+      "theme": "#f9f8f7",
+      "icon": "https://grok.com/images/favicon.svg",
+      "palette": [
+        "#000000"
+      ],
+      "from": "xAI/X 品牌黑",
+      "err": "cannot identify image file <_io.BytesIO object at 0x00000206"
+    },
+    "mistral": {
+      "name": "Mistral",
+      "url": "https://mistral.ai/",
+      "theme": null,
+      "icon": null,
+      "palette": [
+        "#C00010",
+        "#F05000",
+        "#F08000",
+        "#E00000"
+      ],
+      "from": "https://mistral.ai/favicon.ico"
+    },
+    "llama": {
+      "name": "Meta Llama",
+      "url": "https://www.llama.com/",
+      "theme": null,
+      "icon": "https://www.llama.com/favicon.ico?favicon.0o~z3n2dfavrq.ico",
+      "palette": [
+        "#0866FF"
+      ],
+      "from": "Meta 品牌蓝",
+      "err": "HTTP Error 400: Bad Request"
+    },
+    "claude": {
+      "name": "Anthropic Claude",
+      "url": "https://claude.ai/",
+      "theme": null,
+      "icon": "https://cdn.prod.website-files.com/67ce28cfec624e2b733f8a52/681d52619fec35886a7f1a70_favicon.png",
+      "palette": [
+        "#D97757"
+      ],
+      "from": "Anthropic 官方陶土橙",
+      "err": "HTTP Error 403: Forbidden"
+    },
+    "openai": {
+      "name": "OpenAI",
+      "url": "https://openai.com/",
+      "theme": null,
+      "icon": null,
+      "palette": [
+        "#000000"
+      ],
+      "from": "OpenAI 官网黑白",
+      "err": "HTTP Error 403: Forbidden"
+    },
+    "baichuan": {
+      "name": "百川 Baichuan",
+      "palette": [
+        "#F06030",
+        "#F07030",
+        "#F08030",
+        "#F09030"
+      ],
+      "from": "https://www.baichuan-ai.com/favicon.ico"
+    }
+  }
+}
