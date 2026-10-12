@@ -1,0 +1,18 @@
+{
+  "_说明": "多角色角色表示例配置。坐标以像素为单位；x0 是角色区左边界（跳过左侧标签牌）。",
+  "_用法": "python import_assets.py sheet --image assets/source/cast-sheet.png --map assets/cast-map.example.json",
+  "x0": 100,
+  "cols": 15,
+  "rows": 8,
+  "skip_first_column": false,
+  "rows_map": {
+    "0": { "key": "workbuddy", "name": "WorkBuddy", "front": 0, "side": 1, "back": 2, "seat": "desk-workbuddy" },
+    "1": { "key": "claude",    "name": "Claude",    "front": 0, "side": 1, "back": 2, "seat": "desk-claude" },
+    "2": { "key": "codex",     "name": "Codex",     "front": 0, "side": 1, "back": 2, "seat": "desk-codex" },
+    "3": { "key": "harness",   "name": "DeepSeek Harness", "front": 0, "side": 1, "back": 2, "seat": "desk-dsh" },
+    "4": { "key": "tianshu-exec",    "name": "天枢·执行星域", "front": 0, "side": 1, "back": 2, "seat": "desk-exec" },
+    "5": { "key": "tianshu-approve", "name": "天枢·审批星域", "front": 0, "side": 1, "back": 2, "seat": "desk-approve" },
+    "6": { "key": "tianshu-fix",     "name": "天枢·纠错星域", "front": 0, "side": 1, "back": 2, "seat": "desk-fix" },
+    "7": { "key": "yueqiao",   "name": "月桥",      "front": 0, "side": 1, "back": 2, "seat": "desk-ceo" }
+  }
+}

@@ -17,3 +17,6 @@ supervisor.pid
 *.pem
 credentials*
 secrets*
+
+# 导入工具的生成产物
+build/
