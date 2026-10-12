@@ -1,0 +1,217 @@
+星域蜂巢（StarHive Office）交接说明 —— 给 Codex
+================================================
+生成：DeepSeek Harness ｜ 2026-10-12 ｜ 仓库：https://github.com/Chenyueqiao1029/-Munder-Difflin-Claude-
+本地仓库：D:\徐\星域蜂巢
+
+
+第 0 节 · 一句话
+---------------
+把「像素美术层」做成一个与后端框架解耦的【上层 UI 层】：任何 Agent 框架（我们的 7 个 / oh-my-coder
+的 31 个 / 以后 100 个）只要产出一份清单，就能套上这层皮；同时保证「能在终端里看到它们对话」。
+美术本身由老板用 AI 出图（我们只出提示词 + 规格 + 自检），不承担画图。
+
+
+第 1 节 · 已完成（可验收）
+--------------------------
+
+1.1 美术层已解耦，7 个基础角色可派生任意 N 个（已出 31 个）
+    文件：art/recolor_cast.py
+    产物：build/cast31/（62 个文件：每个角色 sheet + portrait）、build/roster31.json、
+          build/contact-sheet.png（预览接触表）
+    命令：python art/recolor_cast.py
+    判据：build/cast31 下 62 个文件；roster31.json count=31；sheet 尺寸 504x324
+    提交：895292a
+
+1.2 美术需求书（给 AI 出图用）
+    文件：assets/ART-SPEC.md（docs/ART-SPEC.md 同步一份）
+    含：总览规格表、单元格构图、行列含义、画风与禁止项、中英双语可粘提示词、31 角色 id 清单
+    硬性规格：
+      角色图集 504 x 324 像素 = 7 列 x 3 行，单元格 72 x 108，PNG RGBA 透明背景
+      角色头像 144 x 216
+      办公室地图 1488 x 1057（尺寸可不同，脚本会适配）
+      行序：第 1 行正面 / 第 2 行背面 / 第 3 行侧面（朝右）
+      列序：前 4 帧行走，后 3 帧站立 / 伏案工作 / 阅读
+      构图：角色占格高 90%，脚底贴下边缘，左右各留 2px，不要顶到邻格
+      禁止：文字 / 水印 / 名字牌 / 对话气泡 / 地面阴影 / 白底（必须透明）
+
+1.3 素材自检工具（AI 出的图能不能用，一跑就知道）
+    文件：art/check_assets.py
+    检查 8 项：尺寸（含整数倍缩放的换算）/ 透明背景 / 每格非空 / 脚底贴底 / 头顶留白 /
+              不越格（防邻格半个人）/ 侧面朝向 / 头像尺寸
+    命令：python art\check_assets.py            （检查 assets\chars 全部角色）
+          python art\check_assets.py <某个sheet>（单张）
+    实测：现有 7 个角色全部通过（0 失败）；31 个派生角色也通过
+    提交：b218bf4、dd06306
+
+1.4 模型注册表（19 个模型）
+    文件：models/registry.json（机器可读）+ models/build_registry.py（生成器，含只读核对
+          oh-my-coder 的 src/models 适配器清单）
+    内容：国产 12 / 国外 6 / 本地 1；字段：id、name、vendor、region、connected（是否已接入）、
+          how（接入方式）、free（免费额度）、cn/code（能力分）、context、difficulty、note、score
+    已接入 3：DeepSeek（rivet 天枢 / dsh headless）、Claude（claude CLI）、OpenAI GPT（codex exec）
+    待接入 16：GLM / Kimi / 通义千问 / 豆包 / 混元 / MiMo / MiniMax / 文心一言 / 百川 /
+              讯飞星火 / 零一万物 Yi / Ollama / Gemini / Grok / Mistral / Llama
+    提交：2b4c7e9
+
+1.5 逐模型出图提示词（只做"我们还没有"的 16 个）
+    文件：assets/PROMPTS.md（290 行，16 段）
+    每段含：真实特色 + 评价来源链接、官方品牌色（含取色来源）、二创依据或"本仓库原创"标注、
+            外形/道具/气质、可直接复制的提示词（代码块内无 Markdown 符号，复制即可用）
+    依据来源分两类（重要）：
+      A) 官方品牌色 = 实测。models/grab_brand_colors.py 抓官网 favicon 主色 + theme-color；
+         models/grab_brand_colors2.py 用备用路径补齐；抓不到的用官方文档色并在文档中标注。
+         明细：models/brand-colors.json（8 个实测 + 8 个官方文档色，每色都有取色来源）
+         实测举例：DeepSeek #4060F0、GLM #1040F0、Kimi #1080F0/#003060、通义 #0020F0、
+                   豆包 #C0E0F0、小米 MiMo #E06010、MiniMax #F05040、文心 #2030E0、
+                   百川 #F06030、星火 #30C0F0/#E00000、Yi #206050、Mistral #C00010→#F08000、
+                   Gemini #3080F0/#F04040、腾讯混元 #0052D9（文档）、Meta Llama #0866FF（文档）、
+                   Anthropic Claude #D97757（文档）、Ollama/Grok/OpenAI = 黑白（文档）
+      B) 二创（别人的拟人设定）= 真去搜过，结论写进文档：
+         有：openpet-ai-girls 仓库（36★）给了 DeepSeek（蓝发星空优雅）、豆包（黑白洛丽塔）、
+             Gemini（彩虹发）、ChatGPT（薄荷绿）、Claude（橙粉荷叶边）；
+             另有 deepseek-chan-qqbot（人设：嘴毒心软、有脾气有记性）与知乎「千问娘」。
+         没有：GLM / Kimi / 混元 / MiMo / MiniMax / 文心 / 百川 / 星火 / Yi / Ollama / Grok /
+               Mistral / Llama —— 这些的二创散在 B站/小红书/知乎图文，没有可引用的统一设定，
+               因此文档中明确标注为「本仓库原创设定」，不许拿印象冒充依据。
+    生成器：models/make_prompts_v3.py（重跑会覆盖 assets/PROMPTS.md）
+    提交：1917ed3、24e1956、3510c6f、dd06306
+
+1.6 自定义模型（老板上传图即可）
+    文件：tools/add_custom_agent.py
+    命令：python tools\add_custom_agent.py --image D:\我的图.png --name "我的模型" --key mymodel --model glm --install
+    行为：自动抠纯色/棋盘格背景 -> 裁到内容 -> 生成 <key>.sheet.png（504x324）+ <key>.portrait.png
+          （144x216）-> 追加登记 assets/custom-agents.json -> 自动调用自检
+          不加 --install 就只生成与登记，不动办公室
+    实测：mymodel 生成并通过自检（0 失败）
+    已知限制：上传「全身立绘」效果最好；只给头像时走路帧只能是复制的（自检会提示），仅可当占位。
+    提交：2b4c7e9
+
+
+第 2 节 · 未完成 / 需要做的（按建议顺序）
+----------------------------------------
+
+2.1 [高] 引擎网关（价格感知 + 免费优先）—— 目前 4 个引擎是硬编码
+    现状：core/agent_driver2.py 里直接写死 rivet / dsh / codex / codebuddy 的命令模板
+    要做：抽成 core/engine_gateway.py，数据源用 models/registry.json
+          每个引擎标注：命令模板、单价/免费额度、能力分；投递时按「免费优先 + 能力匹配」排序
+    判据：给每个引擎打印一行成本估算；把 GLM 标为免费后，同一任务优先派给它；
+          加新模型只改 registry.json，不改驱动代码
+    收益：直接省 API 钱
+
+2.2 [高] 上下文瘦身 —— 现在每轮重灌完整 memory（实测单轮约 24,500 input tokens）
+    现状：core/agent_chat_repl.py 的 HEAD/TASK 模板把完整人设与记忆全量注入
+    要做：固定短前缀（<=2k tokens）+ 其余按需检索；可参考 oh-my-coder 的
+          src/core/context_compressor.py 与 src/memory/auto_compact.py 的分层思路
+    判据：单轮 input tokens 降到 <=10,000（用引擎 --json 输出的 usage 字段实测）
+    收益：省钱 + 提速
+
+2.3 [中] 31 个工位的办公室布局 —— 现在地图只有 8 个座位
+    现状：assets/map/office-atlas.png 为 1488x1057，art/build_map2.py 里写死 8 个工位坐标：
+          desk-ceo(240,262) desk-workbuddy(215,604) desk-claude(455,604) desk-codex(730,604)
+          desk-dsh(1000,604) desk-exec(245,852) desk-approve(630,852) desk-fix(1015,852)
+    要做：自动排 31 工位的布局（几何/坐标由脚本生成），地图美术由老板另出
+    判据：生成 office31.json，31 个工位坐标互不重叠，且每个角色都能坐进去
+
+2.4 [中] 终端视图覆盖"按任务运行"的 Agent（如 oh-my-coder 的 31 个）
+    现状：agent_chat_repl.py 已经能给常驻引擎一个实时终端（思考/工具调用/输出/回答 流式渲染），
+          但 oh-my-coder 那类 Agent 是每次任务起一次进程，非常驻
+    要做：解析它的逐 Agent 输出（该框架本来就逐 Agent 打印 tokens/耗时/结果），
+          翻译成同样的终端流；可参考 patches/native_hook_bridge.py 的事件翻译思路
+    判据：跑一个任务，终端里能看到 31 个 Agent 里谁在动、调用了什么、结果是什么
+
+2.5 [中] 8 个"官方文档色"补实测
+    现状：混元 #0052D9、Meta Llama #0866FF、Anthropic #D97757、Ollama/Grok/OpenAI 黑白
+          等 8 个是官方文档色/通用认知，不是 favicon 实测
+    要做：用它们的开放平台/文档站/备用 favicon 路径再抓一轮
+    判据：models/brand-colors.json 中每条的 from 字段都不再是「官方文档色」
+
+2.6 [低] 把纪律从"文档"升级成"机制"
+    现状：docs/我的工作纪律.md 有 R1-R7 硬规则与 7 条真实事故教训，但靠自觉
+    要做：加 .pre-commit-config.yaml（ruff + detect-secrets）+ 把 tests/ 从 2 个扩到覆盖
+          驱动限流、去重账本、终端恢复
+    判据：pre-commit run --all-files 通过；密钥扫描 0 命中（现在是用手写正则扫的）
+
+2.7 [已知遗留，不在本仓库范围]
+    - app 内原生遥测（hook 桥）未做：rivet / dsh 不发 Claude 式 hook，app 面板看不到它们的
+      思考与工具调用；目前用「终端 REPL + 流式渲染」替代
+    - F12：headless 员工「能读不能写」，报 sandbox-local windows-acl temp grant
+      materialization failed；需要一个 ACL 修复（可用 bundled skill diagnose-windows-sandbox-acl）
+    - 外部额度：Codex（ChatGPT 额度锁）、WorkBuddy（codebuddy 429）
+    - 仓库侧：main 分支保护、协作者权限确认（需网页操作）
+
+
+第 3 节 · 硬约束（违反会毁掉已完成的工作）
+------------------------------------------
+
+1) 禁止弹窗 / 抢焦点 / 自动开浏览器 / 覆盖桌面（老板在桌面一打游戏，AI 在桌面二工作）
+2) 不要用鼠标自动化去操作老板的桌面：实测我的进程给 Chrome 发不了鼠标点击（UIPI/隔离），
+   键盘事件有效但盲点鼠标危险。相关结论：截图 3 次点击后画面字节完全一致。
+3) 不要动比赛仓库 E:\Downloads\lingshu-server
+4) 改 renderer 前必须先跑 patches/patch_renderer.py 与 patches/patch_map.py；
+   不要重建 renderer（U2 补丁与对话终端注入是就地改的，重建会丢）
+5) 主进程补丁：__mdPtyBind / __mdAutoRevive / __mdWakeForce（__mdWakeRestart 已移除），
+   改完要过 esbuild 语法门并留备份
+6) 禁止在 outbox 写 act="done"（会被 app 当临时工完工信号回收）；完工用 act="inform"
+7) Windows/PowerShell 5.1 环境：不要用 Set-Content 写 JSON（BOM 致命）；
+   用命令行为关键字过滤进程时必须排除自身 PID（我因此误杀过 harness 自己的进程两次）
+8) 本仓库所有脚本都做过「无窗口」处理（CREATE_NO_WINDOW + pythonw），新增脚本请照做
+
+
+第 4 节 · 目录速查
+------------------
+
+D:\徐\星域蜂巢\
+  README.md                  项目说明（基于 Munder Difflin 的二次开发）
+  CONTRIBUTING.md            协作与 PR 流程
+  core\                      编排核心：投递驱动、去重账本、守卫、监督器、状态/看板、对话终端
+  patches\                   对上游 app 的补丁（每个都带备份 + 语法门）
+  art\                       像素流水线：切图/抠图/派生配色/自检
+  assets\                    美术层：chars（角色图集）、map（地图）、ART-SPEC.md（需求书）、
+                             PROMPTS.md（16 模型提示词）、roster.example.json（清单规范）、
+                             custom-agents.json（自定义模型登记）
+  models\                    模型层：registry.json、brand-colors.json、三个生成脚本
+  tools\add_custom_agent.py  上传图 -> 自定义模型
+  tests\                     驱动安全与终端恢复单测
+  docs\                      工程纪律、交接文档、学习笔记
+
+
+第 5 节 · 验收命令（复制即可跑）
+--------------------------------
+
+# 素材自检（应 0 失败）
+python D:\徐\星域蜂巢\art\check_assets.py
+
+# 7 个基础角色派生 31 个（应产出 62 个文件）
+python D:\徐\星域蜂巢\art\recolor_cast.py
+
+# 自定义模型（不装，只生成 + 登记 + 自检）
+python D:\徐\星域蜂巢\tools\add_custom_agent.py --image D:\徐\星域蜂巢\assets\chars\yueqiao.portrait.png --name 测试 --key test1 --model glm
+
+# 模型注册表是否可读、计数是否 19
+python -c "import json,io;d=json.load(io.open(r'D:\徐\星域蜂巢\models\registry.json',encoding='utf-8'));print(len(d['models']), sum(1 for m in d['models'] if m['connected']))"
+
+# 品牌色是否每色都有来源
+python -c "import json,io;d=json.load(io.open(r'D:\徐\星域蜂巢\models\brand-colors.json',encoding='utf-8'))['data'];print(sum(1 for v in d.values() if v.get('from')), '/', len(d))"
+
+
+第 6 节 · 提交记录（本仓库 main 分支，均已推送）
+------------------------------------------------
+895292a  feat(art): 美术层解耦——7 个基础角色可派生任意 N 个 + 清单规范
+b218bf4  docs(art): 美术需求书 ART-SPEC + 素材自检工具
+2b4c7e9  feat(models): 模型注册表(19)+逐模型提示词+自定义模型导入
+1917ed3  docs(prompts): 按网上真实评价重写提示词（只做未接入的 16 个）
+24e1956  fix(prompts): 配色改用实测/官方真实品牌色 + 补回百川
+3510c6f  docs(prompts): v3 外形依据改为「查二创」——有据用二创，没据标注原创
+dd06306  fix(prompts): 提示词代码块内去掉 Markdown 加粗符号
+
+（更早的提交：项目初始化、素材随包、去标识、清缓存等，见 git log）
+
+
+第 7 节 · 我建议 Codex 的第一件事
+--------------------------------
+做 2.1 引擎网关（models/registry.json -> core/engine_gateway.py），因为它同时解决：
+  · 现在引擎硬编码、加模型要改代码
+  · 成本不透明（我们单轮 2.4 万 tokens 却没有价格感知）
+  · 与 2.2 上下文瘦身叠加后，是最直接的一笔省钱
+
+—— 完 ——
