@@ -7,17 +7,21 @@
   C. OfficeFloor chunk：新增 MD_ANIM_FRAMES（走 0-2 / 打字 3-4 / 阅读 5-6），按标记选择
   D. 主 bundle：卡片头像先画程序化、自定义图解码完再覆盖
 """
+import argparse
 import base64
+import datetime
 import json
 import os
 import shutil
+import subprocess
 import sys
+import tempfile
 
-APP = r'D:\徐\MunderDifflin\Munder-Difflin-0.5.5-fixed'
-SRC_RENDERER = os.path.join(APP, 'resources', 'app', 'out',
-                            'renderer.official-20261011-005538')   # 官方原件
-STAGE = r'D:\徐\MunderDifflin\_renderer-patched'
-PACK = r'D:\徐\MunderDifflin\custom-cast\pack'
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+TOOLS = os.path.join(REPO, 'tools')
+if TOOLS not in sys.path:
+    sys.path.insert(0, TOOLS)
 
 CAST = ['stanley', 'dwight', 'angela', 'oscar', 'jim', 'kevin', 'michael']
 CELL_W, CELL_H = 72, 108
@@ -28,9 +32,90 @@ def data_url(path):
         return 'data:image/png;base64,' + base64.b64encode(fh.read()).decode('ascii')
 
 
-def main():
-    if not os.path.isdir(SRC_RENDERER):
-        sys.exit('找不到官方 renderer 备份: %s' % SRC_RENDERER)
+class InstallError(RuntimeError):
+    pass
+
+
+def _load_config():
+    try:
+        from md_config import cfg, cfg_with_source
+    except (ImportError, SyntaxError) as exc:
+        raise InstallError(
+            '无法加载 tools/md_config.py（%s）。请确认该文件存在且能通过 py_compile。' % exc
+        )
+    return cfg, cfg_with_source
+
+
+def _require_app(app):
+    out_dir = os.path.join(app, 'resources', 'app', 'out') if app else ''
+    if not app or not os.path.isdir(out_dir):
+        raise InstallError(
+            '找不到 Munder Difflin 应用目录。请设置环境变量 MD_APP_DIR，'
+            '或在仓库根 config.json 中填写 app_dir（应包含 resources\\app\\out）。'
+        )
+    return out_dir
+
+
+def _require_esbuild(esbuild):
+    if not esbuild or not os.path.isfile(esbuild):
+        raise InstallError(
+            '找不到 esbuild。请设置环境变量 MD_ESBUILD，'
+            '或在仓库根 config.json 中填写 esbuild（指向 esbuild.exe）。'
+        )
+
+
+def _pick_stage(app, configured, source):
+    if source in ('config.json', 'env:MD_STAGE_DIR'):
+        return configured
+    candidates = [configured, os.path.join(os.path.dirname(app), '_renderer-patched')]
+    return next((p for p in candidates if p and os.path.isdir(p)), configured or candidates[-1])
+
+
+def _pick_renderer(out_dir, configured, source):
+    if source in ('config.json', 'env:MD_RENDERER_DIR'):
+        candidates = [configured]
+    else:
+        official = sorted(
+            (os.path.join(out_dir, name) for name in os.listdir(out_dir)
+             if name.startswith('renderer.official-')),
+            reverse=True,
+        )
+        candidates = official + [configured, os.path.join(out_dir, 'renderer')]
+    renderer = next((p for p in candidates if p and os.path.isdir(p)), '')
+    if not renderer:
+        raise InstallError(
+            '找不到 renderer 源目录。请设置 MD_RENDERER_DIR，或在 config.json 中填写 '
+            'renderer_dir（目录内应有 index.html 和 assets）。'
+        )
+    return renderer
+
+
+def resolve_paths():
+    cfg, cfg_with_source = _load_config()
+    app = os.path.abspath(cfg('app_dir')) if cfg('app_dir') else ''
+    out_dir = _require_app(app)
+    esbuild = os.path.abspath(cfg('esbuild')) if cfg('esbuild') else ''
+    _require_esbuild(esbuild)
+    stage_value, stage_source = cfg_with_source('stage_dir')
+    renderer_value, renderer_source = cfg_with_source('renderer_dir')
+    stage = _pick_stage(app, os.path.abspath(stage_value) if stage_value else '', stage_source)
+    renderer = _pick_renderer(
+        out_dir, os.path.abspath(renderer_value) if renderer_value else '', renderer_source
+    )
+    pack = os.path.abspath(cfg('pack_dir')) if cfg('pack_dir') else ''
+    backup = os.path.abspath(cfg('backup_dir')) if cfg('backup_dir') else ''
+    if not stage:
+        raise InstallError(
+            '找不到补丁暂存目录。请设置 MD_STAGE_DIR，或在 config.json 中填写 stage_dir。'
+        )
+    if not backup:
+        raise InstallError(
+            '找不到备份目录配置。请设置 MD_BACKUP_DIR，或在 config.json 中填写 backup_dir。'
+        )
+    return {
+        'app': app, 'source': renderer, 'stage': stage, 'pack': pack,
+        'esbuild': esbuild, 'backup': backup,
+    }
 
     cast = {}
     for name in CAST:
