@@ -40,3 +40,5 @@ python import_assets.py map --image my-office.png --uniform 50
 
 - 本目录素材由仓库作者创作（AI 辅助生成后人工筛选/清理），随本仓库以 **MIT** 授权分发。
 - 若你替换为自己的素材，请保留你自己的授权说明；**不要**提交来源不明或含他人版权角色的素材。
+
+> 本项目是 **Munder Difflin 的二次开发**（仓库名 `munder-difflin-starhive`）：只提供补丁与编排层，不分发上游代码与资源。

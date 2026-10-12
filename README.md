@@ -1,9 +1,23 @@
-# 星域蜂巢 · StarHive Office
+# 星域蜂巢 · 基于 Munder Difflin 的二次开发
+
+> **StarHive Office** — a community re-development (二次开发) built **on top of** [Munder Difflin](https://github.com/chaitanyagiri/munder-difflin)
+> 上游：像素办公室的渲染与调度层。本仓库：**编排层 + 补丁集 + 工程纪律**，**不分发**上游的代码与美术资源。
+> 想自己跑：请先从上游获取它的应用（本仓库的 `patches/` 是给它打的补丁）。
 
 把一堆**互相协作的 AI agent** 放进一间**像素风办公室**里跑，并且——这是重点——**让它省钱、可观测、可验收**。
 
 > 上游渲染与调度来自开源项目 **Munder Difflin**（Electron + Pixi.js 像素办公室，基于 Claude-Code 式 hook 协议）。
 > 本仓库是围绕它做的**编排层 + 补丁集 + 工程纪律**：补齐它对「非 Claude 系引擎」的盲区。
+
+## 与上游的关系（重要）
+
+| | |
+|---|---|
+| **上游** | Munder Difflin（Electron + Pixi.js 的像素风 agent 办公室，基于 Claude-Code 式 hook 协议） |
+| **本仓库** | 它的**二次开发**：不改上游代码本体，而是提供 ①`patches/` 补丁脚本 ②`core/` 编排层 ③`docs/` 工程纪律 |
+| **为什么需要它** | 上游只对接 Claude 式 hook 的 CLI；换成 `rivet(天枢)` / `dsh` / `codex` / `codebuddy` 后会掉终端、掉 ptyId、掉连接、派活丢 75% —— 本仓库把这些补齐 |
+| **分发边界** | 本仓库**不含**上游二进制、asar、美术资源；请自行获取上游，再用 `patches/` 打补丁 |
+| **命名** | 仓库名 `munder-difflin-starhive` = 上游名 + 本仓库后缀，一眼可见血缘 |
 
 ## 它解决什么问题
 
