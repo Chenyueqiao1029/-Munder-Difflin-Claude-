@@ -25,3 +25,6 @@ build/
 __pycache__/
 *.pyc
 *.pyo
+
+# 老板出图的原图（本地测试用，不入库）
+assets/source/brands12.png

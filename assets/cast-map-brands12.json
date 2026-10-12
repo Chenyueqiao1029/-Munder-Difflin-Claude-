@@ -1,0 +1,26 @@
+{
+  "_用途": "给老板生成的『十二大AI品牌像素角色精灵图鉴』(12 行 x 13 列，左侧 90px 品牌标签栏) 用的切图配置。",
+  "_用法": "python import_assets.py sheet --image <你的图.png> --map assets/cast-map-brands12.json --install",
+  "_说明": "x0 是跳过左侧标签栏的像素数；cols/rows 是图的网格；rows_map 的行号从 0 开始，对应图中自上而下第几行。",
+  "_注意": "图里是『一行一个品牌、多帧』；引擎要的是『一行一个朝向、7 帧』。import_assets.py 会自动抠图并重排，无需你手工裁。",
+  "x0": 90,
+  "cols": 13,
+  "rows": 12,
+  "skip_first_column": false,
+  "rows_map": {
+    "0":  { "key": "glm",      "name": "智谱 GLM",   "front": 0, "side": 1, "back": 2, "seat": "desk-ceo" },
+    "1":  { "key": "kimi",     "name": "Kimi",       "front": 0, "side": 1, "back": 2, "seat": null },
+    "2":  { "key": "qwen",     "name": "通义千问",   "front": 0, "side": 1, "back": 2, "seat": null },
+    "3":  { "key": "doubao",   "name": "豆包",       "front": 0, "side": 1, "back": 2, "seat": null },
+    "4":  { "key": "hunyuan",  "name": "腾讯混元",   "front": 0, "side": 1, "back": 2, "seat": null },
+    "5":  { "key": "mimo",     "name": "小米 MiMo",  "front": 0, "side": 1, "back": 2, "seat": null },
+    "6":  { "key": "ernie",    "name": "百度文心",   "front": 0, "side": 1, "back": 2, "seat": null },
+    "7":  { "key": "spark",    "name": "讯飞星火",   "front": 0, "side": 1, "back": 2, "seat": null },
+    "8":  { "key": "minimax",  "name": "MiniMax",    "front": 0, "side": 1, "back": 2, "seat": null },
+    "9":  { "key": "baichuan", "name": "百川",       "front": 0, "side": 1, "back": 2, "seat": null },
+    "10": { "key": "stepfun",  "name": "阶跃星辰",   "front": 0, "side": 1, "back": 2, "seat": null },
+    "11": { "key": "yi",       "name": "零一万物",   "front": 0, "side": 1, "back": 2, "seat": null }
+  },
+  "_缺的5个": ["ollama", "gemini", "grok", "mistral", "llama"],
+  "_多出的1个": "stepfun（阶跃星辰）—— 不在原 16 个清单里，建议补进 models/registry.json"
+}
