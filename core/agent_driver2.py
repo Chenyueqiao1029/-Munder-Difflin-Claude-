@@ -87,7 +87,7 @@ AGENTS = {
 PROMPT = (
     '你是{name}。只处理以下一封任务邮件，不扫描其他收件箱或重读全部 memory/persona。'
     '先检查指定产物是否已有；只做缺少的部分。最多一次执行；到时交出完成状态、证据或卡点。'
-    '不得操作 E:\\Downloads\\lingshu-server；不得写 act="done"；汇报最多三行。\n'
+    '不得操作 某比赛项目仓库（路径略）；不得写 act="done"；汇报最多三行。\n'
     '任务键：{key}\n验收条件：{done_when}\n指定产物：{evidence}\n'
     '邮件：{mail}\n产物建议目录：{outdir}'
 )

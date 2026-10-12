@@ -7,7 +7,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 HIVE = Path(r'C:\Users\徐\yueqiaochangetheworld\hive')
 BACKUP = HERE / 'backup-taskcards-20261012'
-BASE = 'projects/灵枢光谷杯优化/'
+import os
+BASE = os.environ.get('MD_PROJECT_DIR', 'projects/example-project/')  # 指向你的项目目录
 EXEC = 'LIGHTCUP-closeout:execution:v1'
 SPECS = {
     'tianshu-mv3d0002': {

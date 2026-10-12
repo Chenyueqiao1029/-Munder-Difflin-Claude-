@@ -95,7 +95,7 @@ Get-Content D:\徐\MunderDifflin\custom-cast\driver-status.json
 1. **改 renderer 前必须先跑**：`patch_renderer.py` → `patch_map.py`（否则自定义角色/地图/座位/气泡/月桥朝向会被覆盖）。
 2. **不要重建 renderer 覆盖已装内容**：U2 补丁与对话终端注入是**就地改**的（`index.html` + `index-*.js`/`global-*.js` + `md-chat-overlay.js`），重建会丢；要重建就先跑 `patch_u2_terminal_restore.py` 等补丁脚本。
 3. **主进程补丁**（`resources\app\out\main\index.js`）：`__mdPtyBind`、`__mdAutoRevive`、`__mdWakeForce`；`__mdWakeRestart` 已移除。备份在 `index.js.bak-*`。
-4. **不要动** `E:\Downloads\lingshu-server`（比赛仓库）。
+4. **不要动** `某比赛项目仓库（路径略）`（比赛仓库）。
 5. **禁止弹窗/抢焦点**（用户硬约束）：启动 Electron 前 `Remove-Item Env:\ELECTRON_RUN_AS_NODE`；后台一律隐藏窗口。
 6. **禁止在 outbox 写 `act:"done"`**（会被 app 当临时工完工信号回收）；完工用 `act:"inform"`。
 
