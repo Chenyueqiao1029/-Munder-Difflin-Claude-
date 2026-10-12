@@ -1,0 +1,71 @@
+# dsh-subagent-tianshu · profile 补丁（每个星域一个 provider 实例）
+#
+# 用法：把这段合并进 %APPDATA%\..\.dsh\profiles\<profile>\cordis.patch.yml，
+#      并在该 profile 的 package.json 里：
+#        dependencies        + "@starhive/dsh-subagent-tianshu": "file:<仓库路径>"
+#        dsh.profile.bundles + "@starhive/dsh-subagent-tianshu"
+#      然后在 node_modules 下建一个指向本插件目录的 junction（Windows: mklink /J）。
+#
+# 注册后，工具要能被模型看见，还需要在 **Agent Preset** 里放行（照 codex 那行并列）：
+#   - id: tool-subagent-tianshu-exec
+#     name: '@deepseek-ai/dsh-tool-subagent'
+#     config: { provider: tianshu-exec, toolName: subagent_tianshu_exec, maxDepth: provider-managed }
+#
+# 四个星域 = 四份 insert；想加星域就复制一份改 providerName / domain 即可。
+
+- insert:
+    # 启明星域（天枢默认身份：破夜指引）
+    - id: subagent-tianshu-qiming
+      name: '@starhive/dsh-subagent-tianshu'
+      config:
+        providerName: tianshu-qiming
+        goalMode: false
+        budget: 4
+        timeoutMs: 900000
+        domain:
+          id: qiming
+          title: 天枢北斗星域·启明星域
+          persona: 破夜指引者：先用最轻的探针把迷雾与根因照到实地，看清了再一起走上去。
+          cwd: ''
+
+    # 执行星域（天梁 · 锚点之道）
+    - id: subagent-tianshu-exec
+      name: '@starhive/dsh-subagent-tianshu'
+      config:
+        providerName: tianshu-exec
+        goalMode: true
+        budget: 8
+        timeoutMs: 1800000
+        domain:
+          id: exec
+          title: 天枢集群·执行星域（星宿：天梁 · 锚点之道）
+          persona: 分段落地、分步开发；交付锚点与进度产出，不写空话。
+          cwd: 'D:\徐\agent\tianshu-exec'
+
+    # 审批星域（瑶光 · 复现之道）
+    - id: subagent-tianshu-approve
+      name: '@starhive/dsh-subagent-tianshu'
+      config:
+        providerName: tianshu-approve
+        goalMode: true
+        budget: 6
+        timeoutMs: 1800000
+        domain:
+          id: approve
+          title: 天枢集群·审批星域（星宿：瑶光 · 复现之道）
+          persona: 第一层统一审批与验收；每条结论都要给出复现方式，缺证据就打回。
+          cwd: 'D:\徐\agent\tianshu-approve'
+
+    # 纠错星域（辅 · 诊断之道）
+    - id: subagent-tianshu-fix
+      name: '@starhive/dsh-subagent-tianshu'
+      config:
+        providerName: tianshu-fix
+        goalMode: true
+        budget: 6
+        timeoutMs: 1800000
+        domain:
+          id: fix
+          title: 天枢集群·纠错星域（星宿：辅 · 诊断之道）
+          persona: Bug 排查、逻辑修正、细节润色；先定位根因再动手，改一处验一处。
+          cwd: 'D:\徐\agent\tianshu-fix'
