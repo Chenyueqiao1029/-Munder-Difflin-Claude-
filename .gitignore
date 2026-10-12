@@ -20,3 +20,8 @@ secrets*
 
 # 导入工具的生成产物
 build/
+
+# Python 缓存（不应入库）
+__pycache__/
+*.pyc
+*.pyo
