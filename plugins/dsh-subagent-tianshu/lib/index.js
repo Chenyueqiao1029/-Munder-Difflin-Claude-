@@ -104,9 +104,12 @@ class TianshuProvider {
         timeoutMs: cfg.timeoutMs,
         abortSignal: controller.signal,
       });
+      lastElapsedMs = r.elapsedMs;
+      lastArgv = r.argv;
       if (r.exitCode !== 0) {
         throw new Error(`subagent-tianshu[${domain.id || this.name}]: 天枢退出码 ${r.exitCode} :: ${(r.answer || r.raw || '').slice(0, 300)}`);
       }
+      lastAnswer = r.answer;
       return {
         stopReason: 'completed',
         output: [{ type: 'text', text: r.answer }],
@@ -115,13 +118,39 @@ class TianshuProvider {
       };
     };
 
-    const result = settleRunResult({ attempt });
+    /*
+     * 【2026-10-12 修 · 实测崩溃】原写法是 `settleRunResult({ attempt })` —— **只给了 attempt**。
+     * 框架的签名是 `settleRunResult(parts)`，`parts` 至少还需要：
+     *   signal / onAbort / cancelled / collectOutput / collectDiagnostic / onError
+     * 它在 `finally` 里无条件执行 `parts.signal.removeEventListener('abort', parts.onAbort)`
+     * （`@deepseek-ai/dsh-subagent/lib/index.js:2640`），于是 `parts.signal === undefined`
+     * 直接抛 `TypeError: Cannot read properties of undefined (reading 'removeEventListener')`
+     * —— 这正是四个天枢工具全部报同一个错的原因。
+     *
+     * 参照已跑通的 `@deepseek-ai/dsh-subagent-codex`（其 lib/index.js:758-798）补齐字段。
+     * `signal` 传**我们自己的 `controller.signal`**：它一定存在且 AbortSignal 语义完整
+     * （`request.signal` 可能缺失；`request?.signal ?? controller.signal` 这种写法
+     *  一旦 request.signal 是个非 AbortSignal 的真值就会把它传进去，照样崩）。
+     */
+    let lastAnswer = '';
+    let lastElapsedMs = 0;
+    let lastArgv = [];
+    const result = settleRunResult({
+      attempt,
+      collectOutput: () => (lastAnswer ? [{ type: 'text', text: lastAnswer }] : []),
+      collectDiagnostic: () => undefined,
+      cancelled: () => controller.signal.aborted,
+      onError: (err, phase) => {
+        this.ctx.logger?.warn?.(`subagent-tianshu[${domain.id || this.name}]: ${phase || 'error'} —— ${err && err.message ? err.message : err}`);
+      },
+      signal: controller.signal,
+      onAbort,
+    });
     return subprocessRunHandle({
       id: randomUUID(),
       result,
-      // 关键：绝不能传 undefined —— 框架会对 handle.signal 调 removeEventListener，
-      // 传 undefined 会崩 "Cannot read properties of undefined (reading 'removeEventListener')"（实测踩过）。
-      signal: request?.signal ?? controller.signal,
+      signal: controller.signal,
+      onAbort,
       onAbort,
       requestCancel: () => controller.abort(),
       teardown: async () => { cleanup(); controller.abort(); },

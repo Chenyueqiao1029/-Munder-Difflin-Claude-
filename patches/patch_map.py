@@ -247,8 +247,15 @@ def install(paths):
     syntax_gate(fp, ESBUILD)
 
     t2 = open(fp, encoding='utf-8').read()
+    # 自检：尺寸**从新地图自己的 JSON 里读**，不再硬编码（用户自定义地图尺寸各不相同）
+    try:
+        new_map = json.loads(open(MAP_JSON, encoding='utf-8').read())
+        want_w = str(new_map.get('width'))
+        want_tw = str(new_map.get('tilewidth'))
+    except Exception as exc:
+        raise InstallError('读不出新地图 %s：%s' % (MAP_JSON, exc))
     checks = [
-        ('地图已换', '"width":48' in t2 and '"tilewidth":32' in t2),
+        ('地图已换', ('"width":%s' % want_w) in t2 and ('"tilewidth":%s' % want_tw) in t2),
         ('图集引用', './assets/office-new.png' in t2),
         ('座位表', '"desk-workbuddy"' in t2 and '"desk-fix"' in t2),
         ('角色补丁仍在', '__mdCustomFrames' in t2),

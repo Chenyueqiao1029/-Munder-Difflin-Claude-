@@ -25,7 +25,26 @@ TOOLS = os.path.join(REPO, 'tools')
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-CAST = ['stanley', 'dwight', 'angela', 'oscar', 'jim', 'kevin', 'michael']
+def discover_cast(*dirs):
+    """动态发现角色：在这些目录里找 <name>.sheet.png + 同名 .portrait.png。
+    查找顺序为参数顺序（pack/ 优先，其次 assets/chars/ —— 开源仓库里角色就放在 chars/）。
+    用户用 tools/customize.py char 导入的角色两个目录都会有，因此必然能上场。
+    返回 {name: (sheet_abs, portrait_abs)}；一个都找不到时返回空字典（由调用方决定回退）。"""
+    found = {}
+    for d in dirs:
+        if not d or not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not f.endswith('.sheet.png'):
+                continue
+            name = f[:-len('.sheet.png')]
+            sheet = os.path.join(d, f)
+            port = os.path.join(d, name + '.portrait.png')
+            if name not in found and os.path.exists(port):
+                found[name] = (sheet, port)
+    return found
+
+
 CELL_W, CELL_H = 72, 108
 
 
@@ -198,15 +217,17 @@ def install(dry_run=False):
             '或修改 config.json 中的 backup_dir。'
         )
 
+    chars_dir = os.path.join(REPO, 'assets', 'chars')
+    found = discover_cast(PACK, chars_dir)
+    if not found:
+        raise InstallError(
+            '一个角色素材都没找到。请把 <名字>.sheet.png 与 <名字>.portrait.png 放进去：\n'
+            '  · %s（推荐，仓库自带 7 个）\n'
+            '  · 或 %s（可用 tools\\customize.py char 导入后会自动同步过来）\n'
+            '也可以用环境变量 MD_PACK_DIR 指向你自己的素材目录。' % (chars_dir, PACK)
+        )
     cast = {}
-    for name in CAST:
-        sheet = os.path.join(PACK, '%s.sheet.png' % name)
-        port = os.path.join(PACK, '%s.portrait.png' % name)
-        if not (os.path.exists(sheet) and os.path.exists(port)):
-            raise InstallError(
-                '缺少角色素材：%s。请设置 MD_PACK_DIR，或在 config.json 中填写 pack_dir；'
-                '该目录应包含 %s.sheet.png 与 %s.portrait.png。' % (name, name, name)
-            )
+    for name, (sheet, port) in found.items():
         cast[name] = {'sheet': data_url(sheet), 'portrait': data_url(port)}
 
     backup_path = _backup_stage(STAGE, backup)

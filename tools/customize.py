@@ -50,22 +50,77 @@ def pick_file(title='选一张图片'):
         return ''
 
 
+def sync_char_to_pack(key):
+    """把角色素材同步进 pack/ —— 安装补丁 patch_renderer.py 是从 pack/ 动态发现角色的，
+    不写这里，用户导入的角色就上不了场（这就是"自定义在像素工作室里看不见"的根因之一）。"""
+    src = os.path.join(REPO, 'assets', 'chars')
+    dst = os.path.join(REPO, 'pack')
+    os.makedirs(dst, exist_ok=True)
+    n = 0
+    for suffix in ('.sheet.png', '.portrait.png'):
+        f = os.path.join(src, key + suffix)
+        if os.path.exists(f):
+            shutil.copy2(f, os.path.join(dst, key + suffix))
+            n += 1
+    return n
+
+
 # ---------------------------------------------------------------- 形象
 def do_char(img, name, key, install):
     t = os.path.join(HERE, 'add_custom_agent.py')
     if not os.path.exists(t):
         log('✗ 找不到 tools/add_custom_agent.py')
         return 2
-    cmd = [sys.executable, t, '--image', img, '--name', name or '我的角色']
-    if key:
-        cmd += ['--key', key]
+    if not key:
+        key = os.path.splitext(os.path.basename(img))[0].lower().replace(' ', '-') or 'custom'
+        key = ''.join(ch for ch in key if ch.isalnum() or ch in '-_') or 'custom'
+    cmd = [sys.executable, t, '--image', img, '--name', name or '我的角色', '--key', key]
     if install:
         cmd += ['--install']
     log('→ 调用形象导入（自动抠背景 / 切 3x7 / 出头像）…')
     r = subprocess.run(cmd)
     if r.returncode == 0:
-        log('完成 ✓ 产物在 assets/chars/%s.*，并登记到 assets/custom-agents.json' % (key or '(自动取名)'))
+        n = sync_char_to_pack(key)
+        log('已同步 %d 个文件到 pack/（安装补丁正是从这里发现角色的）' % n)
+        log('完成 ✓ 产物在 assets/chars/%s.* ｜ 要上场就跑：python patches\\patch_renderer.py' % key)
     return r.returncode
+
+
+def pick_seats(im, grid, ts):
+    """让用户自己选工位：把可走格编号打印出来，用户输入编号（逗号分隔）。
+    图很大时自动抽稀显示（每 2 格取 1），编号仍对应真实格子。"""
+    rows = len(grid)
+    cols = len(grid[0]) if rows else 0
+    step = 1
+    while (rows // step) * (cols // step) > 900:
+        step += 1
+    idx_of = {}
+    n = 0
+    print('  可选工位（# 可走 / . 不可走；数字就是编号，图大时已抽稀显示）：')
+    for r in range(0, rows, step):
+        line = []
+        for c in range(0, cols, step):
+            if grid[r][c]:
+                n += 1
+                idx_of[n] = (c, r)
+                line.append('%4d' % n)
+            else:
+                line.append('   .')
+        print('   ' + ''.join(line))
+    try:
+        raw = input('  输入你要的工位编号（逗号分隔；直接回车=自动排）：').strip()
+    except Exception:
+        return []
+    if not raw:
+        return []
+    out = []
+    for part in raw.replace('，', ',').split(','):
+        part = part.strip()
+        if part.isdigit() and int(part) in idx_of:
+            c, r = idx_of[int(part)]
+            out.append({'x': c * ts + ts // 2, 'y': r * ts + ts // 2})
+    print('  你选了 %d 个工位' % len(out))
+    return out
 
 
 # ---------------------------------------------------------------- 办公室
@@ -117,7 +172,7 @@ def auto_seats(im, grid, ts, want):
     return seats[:want]
 
 
-def do_office(img, tile, seats_n, install):
+def do_office(img, tile, seats_n, install, pick=False):
     global ATLAS
     im = Image.open(img).convert('RGB')
     ts = max(8, int(tile))
@@ -177,10 +232,33 @@ def do_office(img, tile, seats_n, install):
     log('已写入地图 → %s（%dx%d 格）' % (os.path.relpath(MAPJSON, REPO), cols, rows))
 
     st = auto_seats(im, grid, ts, max(1, seats_n))
+    if pick:
+        st = pick_seats(im, grid, ts) or st
     io.open(SEATS, 'w', encoding='utf-8', newline='\n').write(json.dumps(
-        {'_说明': '自动排的工位（像素坐标，基于 office-atlas.png）。想调位置直接改 x/y。',
-         'tile': ts, 'count': len(st), 'seats': st}, ensure_ascii=False, indent=1))
-    log('已自动排 %d 个工位 → %s' % (len(st), os.path.relpath(SEATS, REPO)))
+        {'_说明': '工位（像素坐标，基于 office-atlas.png）。想调位置直接改 x/y；'
+                 '也可以重跑：python tools\\customize.py office <图> --pick',
+         'tile': ts, 'count': len(st), 'seats': st, 'picked': bool(pick)}, ensure_ascii=False, indent=1))
+    log('工位 %d 个（%s）→ %s' % (len(st), '你手选' if pick else '自动排', os.path.relpath(SEATS, REPO)))
+
+    # ★ 关键：同步进 pack/ —— patch_map.py 只读 pack/office-new.tmj 与 pack/office-new-final.png，
+    #   不写这里，用户的自定义地图就永远进不了办公室（"看得见"的根因）。
+    #   ⚠️ 必须先备份：这两个文件就是"当前正在用的地图"，直接覆盖会把原有地图弄丢（我踩过）。
+    pack = os.path.join(REPO, 'pack')
+    os.makedirs(pack, exist_ok=True)
+    for _n in ('office-new-final.png', 'office-new.tmj'):
+        _src = os.path.join(pack, _n)
+        if os.path.exists(_src):
+            try:
+                os.chmod(_src, 0o666)      # 从别处拷来的图常带只读 -> 不先解锁会 PermissionError（踩过多次）
+            except Exception:
+                pass
+            _bak = os.path.join(pack, _n + '.backup-' + STAMP)
+            shutil.copy2(_src, _bak)
+            log('已备份旧 %s → %s' % (_n, os.path.basename(_bak)))
+    shutil.copy2(ATLAS, os.path.join(pack, 'office-new-final.png'))
+    io.open(os.path.join(pack, 'office-new.tmj'), 'w', encoding='utf-8', newline='\n').write(
+        json.dumps(tmj, ensure_ascii=False, indent=1))
+    log('已同步到 pack/：office-new-final.png + office-new.tmj（安装补丁从这里取地图）')
 
     if install:
         pm = os.path.join(REPO, 'patches', 'patch_map.py')
@@ -190,7 +268,7 @@ def do_office(img, tile, seats_n, install):
         else:
             log('! 没找到 patches/patch_map.py，跳过安装（产物已就绪）')
     else:
-        log('（没加 --install：只生成，没动办公室。确认满意后再加 --install）')
+        log('（没加 --install：只生成没装。要装：加 --install，或跑 python patches\\patch_map.py）')
     return 0
 
 
@@ -203,6 +281,8 @@ def main():
     ap.add_argument('--tile', type=int, default=16)
     ap.add_argument('--seats', type=int, default=12)
     ap.add_argument('--install', action='store_true')
+    ap.add_argument('--pick', action='store_true',
+                    help='交互式自己选工位：终端里列出可走格编号，你输入编号')
     a = ap.parse_args()
 
     print('==============================================')
@@ -239,7 +319,7 @@ def main():
     print('----------------------------------------------')
     if mode == '形象':
         return do_char(img, a.name, a.key, a.install)
-    return do_office(img, a.tile, a.seats, a.install)
+    return do_office(img, a.tile, a.seats, a.install, getattr(a, "pick", False))
 
 
 if __name__ == '__main__':
