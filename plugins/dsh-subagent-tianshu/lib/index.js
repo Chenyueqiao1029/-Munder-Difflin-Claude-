@@ -119,7 +119,9 @@ class TianshuProvider {
     return subprocessRunHandle({
       id: randomUUID(),
       result,
-      signal: request?.signal,
+      // 关键：绝不能传 undefined —— 框架会对 handle.signal 调 removeEventListener，
+      // 传 undefined 会崩 "Cannot read properties of undefined (reading 'removeEventListener')"（实测踩过）。
+      signal: request?.signal ?? controller.signal,
       onAbort,
       requestCancel: () => controller.abort(),
       teardown: async () => { cleanup(); controller.abort(); },
